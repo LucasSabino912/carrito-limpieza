@@ -79,3 +79,11 @@ def cambiar_precio(id: int, nuevo_precio: float):
         return {"status": "success", "data": res.data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.delete("/productos/{id}")
+def borrar_producto(id: int):
+    try:
+        res = supabase.table("productos").delete().eq("id", id).execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
