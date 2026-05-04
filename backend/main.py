@@ -3,23 +3,23 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from fastapi.middleware.cors import CORSMiddleware
-# --- AGREGADO: Importamos BaseModel ---
-from pydantic import BaseModel 
+from pydantic import BaseModel
+from typing import Optional
 
 load_dotenv()
 
-# --- AGREGADO: Definimos el modelo de datos ANTES de las rutas ---
+# --- Definimos el modelo de datos ---
 class ProductoCreate(BaseModel):
     nombre: str
     precio: float
     stock: int
-    imagen_url: str | None = None
-    categoria: str | None = "Limpieza"
+    imagen_url: Optional[str] = None
+    created_at: Optional[str] = None
 
-# 1. Primero creamos la App
+# 1. Creamos la App
 app = FastAPI(title="API Mayorista de Limpieza")
 
-# 2. Después configuramos CORS
+# 2. Configuramos CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,8 +47,35 @@ def listar_productos():
 @app.post("/productos")
 def crear_producto(item: ProductoCreate): 
     try:
-        # .model_dump() convierte el objeto de Pydantic a un diccionario
-        res = supabase.table("productos").insert(item.model_dump()).execute()
+        # exclude_none=True evita mandar "created_at": null a Supabase
+        res = supabase.table("productos").insert(item.model_dump(exclude_none=True)).execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.delete("/productos/{id}")
+def borrar_producto(id: int):
+    try:
+        res = supabase.table("productos").delete().eq("id", id).execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.patch("/productos/{id}/stock")
+def cambiar_stock(id: int, nuevo_stock: int):
+    try:
+        res = supabase.table("productos").update({"stock": nuevo_stock}).eq("id", id).execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
+
+@app.patch("/productos/{id}/precio")
+def cambiar_precio(id: int, nuevo_precio: float):
+    try:
+        res = supabase.table("productos").update({"precio": nuevo_precio}).eq("id", id).execute()
         return {"status": "success", "data": res.data}
     except Exception as e:
         return {"status": "error", "message": str(e)}
