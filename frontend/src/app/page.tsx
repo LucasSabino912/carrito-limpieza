@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useCart } from '../context/cartContext' // Agregamos el import del Contexto
 
 interface Producto {
   id: number
@@ -7,11 +8,15 @@ interface Producto {
   precio: number
   imagen_url: string
   stock: number
+  created_at?: string // Le sumamos la fecha como opcional por las dudas
 }
 
-export default function CatalogoPAge() {
+export default function CatalogoPage() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Nos traemos el estado del carrito y la función para agregar
+  const { cart, addToCart } = useCart()
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
 
@@ -31,19 +36,24 @@ export default function CatalogoPAge() {
       })
   }, [API_URL])
 
+  // Calculamos la cantidad total de artículos en el carrito (no solo ítems distintos)
+  const totalArticulos = cart.reduce((acc, item) => acc + item.cantidad, 0)
+
   if (loading) return (
     <div className="flex items-center justify-center h-screen">
-      <p className="text-xl font-bold text-blue-600 animate-pulse">Cargando catalogo...</p>
+      <p className="text-xl font-bold text-blue-600 animate-pulse">Cargando catálogo...</p>
     </div>
   )
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
       <header className="max-w-6xl mx-auto mb-10 flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-        <h1 className="text-3xl font-extrabold text-blue-800">Mayorista Limpieza</h1>
+        <h1 className="text-3xl font-extrabold text-blue-800">La Gotita Mayorista</h1>
+        
+        {/* Este botón ahora refleja la cantidad real del carrito */}
         <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-bold transition flex items-center gap-2">
           <span>🛒</span>
-          <span>Carrito (0)</span>
+          <span>Carrito ({totalArticulos})</span>
         </button>
       </header>
 
@@ -64,7 +74,12 @@ export default function CatalogoPAge() {
               <p className="text-sm text-gray-500">Stock: {prod.stock} unid.</p>
               <div className="mt-auto">
                 <p className="text-2xl font-black text-green-600 my-3">${prod.precio}</p>
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors">
+                
+                {/* Conectamos el botón con la función del Contexto */}
+                <button 
+                  onClick={() => addToCart(prod)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors active:scale-95"
+                >
                   Agregar al carrito
                 </button>
               </div>
@@ -74,5 +89,4 @@ export default function CatalogoPAge() {
       )}
     </main>
   )
-
 }

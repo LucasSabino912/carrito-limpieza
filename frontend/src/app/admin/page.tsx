@@ -1,5 +1,6 @@
+// src/app/admin/page.tsx
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function AdminPage() {
@@ -8,6 +9,9 @@ export default function AdminPage() {
   const [stock, setStock] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [cargando, setCargando] = useState(false)
+  
+  // Referencia para poder limpiar el input de archivo visualmente
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Usamos la variable de entorno con el fallback local
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
@@ -19,8 +23,9 @@ export default function AdminPage() {
     setCargando(true)
     try {
       // 1. Subir la foto al Storage de Supabase
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
+      // Usamos Date.now() + el nombre original (limpiando espacios por las dudas)
+      const safeFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_')
+      const fileName = `${Date.now()}-${safeFileName}`
       
       const { data: storageData, error: storageError } = await supabase.storage
         .from('productos-fotos')
@@ -43,14 +48,20 @@ export default function AdminPage() {
           nombre,
           precio: parseFloat(precio),
           stock: parseInt(stock) || 0,
-          imagen_url: imgUrl,
-          categoria: "Limpieza"
+          imagen_url: imgUrl
+          // ¡Borramos la categoría de acá!
         })
       })
 
       if (res.ok) {
         alert('¡Producto guardado de una!')
-        setNombre(''); setPrecio(''); setStock(''); setFile(null)
+        // Limpiamos los estados
+        setNombre('')
+        setPrecio('')
+        setStock('')
+        setFile(null)
+        // Limpiamos el input visual de la foto
+        if (fileInputRef.current) fileInputRef.current.value = ''
       } else {
         alert('El backend tiró error')
       }
@@ -68,7 +79,6 @@ export default function AdminPage() {
       
       <form onSubmit={handleGuardar} className="space-y-6">
         <div>
-          {/* text-gray-900 es casi negro para que resalte */}
           <label className="block text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">
             Nombre del Producto
           </label>
@@ -113,6 +123,7 @@ export default function AdminPage() {
             Foto del Producto
           </label>
           <input 
+            ref={fileInputRef} // Conectamos la referencia acá
             className="text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
             type="file" 
             onChange={e => setFile(e.target.files?.[0] || null)} 
