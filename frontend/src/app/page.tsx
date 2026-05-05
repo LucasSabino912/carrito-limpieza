@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useCart } from '../context/cartContext'
-import Link from 'next/link' // <-- Agregamos el Link para que el botón funcione
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface Producto {
   id: number
@@ -21,8 +22,18 @@ export default function CatalogoPage() {
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todas')
   const [categorias, setCategorias] = useState<string[]>([])
   
+  // --- ESTADOS PARA EL LOGIN DE ADMIN ---
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
+  const [usuario, setUsuario] = useState('')
+  const [password, setPassword] = useState('')
+  const [errorLogin, setErrorLogin] = useState('')
+  
   const { cart, addToCart } = useCart()
+  const router = useRouter() // <-- Inicializamos el router
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
+
+  const ADMIN_USER = (process.env.NEXT_PUBLIC_ADMIN_USER).trim()
+  const ADMIN_PASS = (process.env.NEXT_PUBLIC_ADMIN_PASS).trim()
 
   useEffect(() => {
     fetch(`${API_URL}/productos`, { cache: 'no-store' })
@@ -51,6 +62,18 @@ export default function CatalogoPage() {
     return coincideBusqueda && coincideCategoria
   })
 
+  // --- LÓGICA DE LOGIN ---
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (usuario === ADMIN_USER && password === ADMIN_PASS) {
+      // Si está todo bien, lo mandamos a la ruta de admin
+      router.push('/admin')
+    } else {
+      setErrorLogin('Usuario o contraseña incorrectos ❌')
+      setPassword('') // Le borramos la pass para que intente de nuevo
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-screen bg-gray-50">
       <p className="text-xl sm:text-2xl font-bold text-blue-600 animate-pulse">Cargando catálogo...</p>
@@ -58,16 +81,27 @@ export default function CatalogoPage() {
   )
 
   return (
-    <main className="min-h-screen bg-gray-50 p-4 sm:p-6">
+    <main className="min-h-screen bg-gray-50 p-4 sm:p-6 relative">
       <header className="max-w-6xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center bg-white p-4 sm:p-6 rounded-xl shadow-sm gap-4">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-blue-800 text-center sm:text-left">
           La Gotita Mayorista
         </h1>
-        {/* ACÁ ESTÁ LA MAGIA: Ahora es un Link que te lleva a /carrito */}
-        <Link href="/carrito" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 sm:py-2 rounded-full font-bold transition flex items-center justify-center gap-2 shadow-md">
-          <span className="text-xl">🛒</span>
-          <span>Carrito ({totalArticulos})</span>
-        </Link>
+        
+        {/* Agrupamos los botones en el header */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          {/* BOTÓN PARA ABRIR LOGIN DE ADMIN */}
+          <button 
+            onClick={() => setIsLoginOpen(true)}
+            className="w-full sm:w-auto bg-gray-800 hover:bg-gray-900 text-white px-4 py-3 sm:py-2 rounded-full font-bold transition flex items-center justify-center gap-2 shadow-md"
+          >
+            <span>⚙️</span> Acceder
+          </button>
+
+          <Link href="/carrito" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 sm:py-2 rounded-full font-bold transition flex items-center justify-center gap-2 shadow-md">
+            <span className="text-xl">🛒</span>
+            <span>Carrito ({totalArticulos})</span>
+          </Link>
+        </div>
       </header>
 
       <section className="max-w-6xl mx-auto mb-8 bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-200">
@@ -139,7 +173,6 @@ export default function CatalogoPage() {
                 <div className="mt-auto pt-4 border-t border-gray-100">
                   <p className="text-2xl sm:text-3xl font-black text-green-600 mb-4">${prod.precio}</p>
                   
-                  {/* ACÁ VALIDAMOS EL STOCK PARA APAGAR EL BOTÓN SI HACE FALTA */}
                   <button 
                     onClick={() => addToCart(prod)}
                     disabled={prod.stock <= 0}
@@ -157,6 +190,75 @@ export default function CatalogoPage() {
           ))}
         </div>
       )}
+
+      {/* MODAL DE LOGIN */}
+      {isLoginOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full max-w-sm relative animate-fade-in">
+            {/* Botón para cerrar */}
+            <button 
+              onClick={() => {
+                setIsLoginOpen(false)
+                setErrorLogin('')
+                setUsuario('')
+                setPassword('')
+              }} 
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-800 font-bold"
+            >
+              ✕
+            </button>
+            
+            <h2 className="text-2xl font-black mb-6 text-gray-900 text-center">Acceso Admin</h2>
+            
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Usuario</label>
+                <input 
+                  type="text" 
+                  className="w-full border p-3 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-800 outline-none" 
+                  value={usuario} 
+                  onChange={e => setUsuario(e.target.value)} 
+                  required 
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Contraseña</label>
+                <input 
+                  type="password" 
+                  className="w-full border p-3 rounded-lg text-gray-900 focus:ring-2 focus:ring-gray-800 outline-none" 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                />
+              </div>
+
+              {/* Mensaje de error si le erra */}
+              {errorLogin && (
+                <p className="text-red-500 text-sm font-bold text-center bg-red-50 p-2 rounded">{errorLogin}</p>
+              )}
+
+              <button 
+                type="submit" 
+                className="w-full bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-lg font-bold shadow-md transition-all mt-4"
+              >
+                Ingresar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Animación del modal */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.2s ease-out forwards;
+        }
+      `}} />
     </main>
   )
 }
