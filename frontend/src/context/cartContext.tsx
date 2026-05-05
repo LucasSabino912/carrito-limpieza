@@ -1,71 +1,92 @@
 'use client'
 import { createContext, useContext, useState, ReactNode } from 'react'
 
-// 1. Definimos la estructura de tu producto (igual a la base de datos)
 interface Producto {
   id: number
   nombre: string
   precio: number
   imagen_url: string
   stock: number
+  categoria?: string
   created_at?: string
 }
 
-// 2. Definimos cómo es un ítem dentro del carrito (Producto + cantidad)
 interface CartItem extends Producto {
   cantidad: number
 }
 
-// 3. Definimos todo lo que el contexto va a exportar
 interface CartContextType {
   cart: CartItem[]
   addToCart: (product: Producto) => void
   removeFromCart: (id: number) => void
+  updateQuantity: (id: number, cantidad: number) => void
   clearCart: () => void
   total: number
 }
 
-// Creamos el contexto vacío
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
-// 4. Creamos el Provider (el componente que envuelve a tu app)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
 
-  // Función para agregar o sumar cantidad si ya existe
   const addToCart = (product: Producto) => {
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id)
+      
       if (exists) {
-        // Si ya está en el carrito, le sumamos 1 a la cantidad
+        // CHEQUEO DE STOCK: Si ya alcanzó el límite, no suma más
+        if (exists.cantidad >= product.stock) {
+          alert(`¡Ups! Solo hay ${product.stock} unidades de ${product.nombre} en stock.`)
+          return prev
+        }
         return prev.map(item => 
           item.id === product.id ? { ...item, cantidad: item.cantidad + 1 } : item
         )
       }
-      // Si no está, lo agregamos con cantidad 1
+      
+      // CHEQUEO DE STOCK: Si no hay nada de stock, no lo deja agregar el primero
+      if (product.stock <= 0) {
+        alert(`¡No hay stock de ${product.nombre}!`)
+        return prev
+      }
+      
       return [...prev, { ...product, cantidad: 1 }]
     })
   }
 
-  // Función para borrar un producto del carrito
   const removeFromCart = (id: number) => {
     setCart(prev => prev.filter(item => item.id !== id))
   }
 
-  // Función para vaciar todo el carrito (ideal para cuando se envía el pedido)
+  const updateQuantity = (id: number, cantidad: number) => {
+    if (cantidad <= 0) {
+      removeFromCart(id)
+      return
+    }
+    
+    setCart(prev => prev.map(item => {
+      if (item.id === id) {
+        // CHEQUEO DE STOCK EN LOS BOTONCITOS + y -
+        if (cantidad > item.stock) {
+          return { ...item, cantidad: item.stock } // Lo topamos al máximo disponible
+        }
+        return { ...item, cantidad }
+      }
+      return item
+    }))
+  }
+
   const clearCart = () => setCart([])
 
-  // Calculamos el costo total automáticamente
   const total = cart.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, clearCart, total }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, total }}>
       {children}
     </CartContext.Provider>
   )
 }
 
-// 5. Hook personalizado para usar el carrito fácil en cualquier lado
 export const useCart = () => {
   const context = useContext(CartContext)
   if (!context) {
